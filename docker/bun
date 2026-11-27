@@ -1,0 +1,7 @@
+#!/bin/sh
+# Compatibility for existing docker exec callers of the Bun-era MCP entry point.
+if [ "$#" -eq 1 ] && [ "$1" = /app/dist/mcp.js ]; then
+    exec /usr/local/bin/canyon-mcp
+fi
+printf '%s\n' 'Use canyon or canyon-mcp. The Bun compatibility command only accepts /app/dist/mcp.js.' >&2
+exit 64

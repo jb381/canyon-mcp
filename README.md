@@ -22,61 +22,55 @@ The project reads public listing, product, and sitemap pages. It does not sign i
 
 ## Quick start
 
-Install [Bun](https://bun.com/docs/installation) 1.3 or newer, then clone this repository:
+Install Rust 1.96 or newer and a C toolchain for the bundled SQLite, then build and install both binaries with Cargo.
 
 ```sh
 git clone https://github.com/jb381/canyon-mcp.git
 cd canyon-mcp
-bun install --frozen-lockfile
-bun run dev:cli search grail --limit 5
+cargo install --path . --locked
+canyon search grail --limit 5
 ```
 
 Pick a model ID from the results to see sizes, colors, specifications, and variant availability:
 
 ```sh
-bun run dev:cli product 4509
+canyon product 4509
 ```
 
-The default store is `en-de`. Use `--locale de-de` or another Canyon language-country locale to change it. Run `bun run dev:cli locales` to see locales found in Canyon's sitemap.
+The default store is `en-de`. Use `--locale de-de` or another Canyon language-country locale to change it. Run `canyon locales` to see locales found in Canyon's sitemap.
 
 ### A few useful routes
 
 ```sh
 # Find listed medium Grail models with stock in the selected store
-bun run dev:cli search grail --size M --in-stock
+canyon search grail --size M --in-stock
 
 # Compare models and get machine-readable output
-bun run dev:cli compare 4509 4508
-bun run dev:cli search grail --json
+canyon compare 4509 4508
+canyon search grail --json
 
 # Export a shortlist, or check a model periodically
-bun run dev:cli export --world gravel --format csv --output gravel.csv
-bun run dev:cli watch 4509 --size M --interval 300
+canyon export --world gravel --format csv --output gravel.csv
+canyon watch 4509 --size M --interval 300
 ```
 
-`watch` prints an initial snapshot and changes in variants, price, or availability. Stop it with Ctrl-C. Its minimum polling interval is 60 seconds. Run `bun run dev:cli --help` for every command and option.
+`watch` prints an initial snapshot and changes in variants, price, or availability. Stop it with Ctrl-C. Its minimum polling interval is 60 seconds. Run `canyon --help` for every command and option.
 
 ## Connect an MCP client
 
-Build once, then point your MCP client at the compiled server using an **absolute path**:
-
-```sh
-bun run build
-which bun
-```
+Use `command -v canyon-mcp` to find the server binary and enter its absolute path in the MCP client configuration.
 
 ```json
 {
   "mcpServers": {
     "canyon": {
-      "command": "/absolute/path/to/bun",
-      "args": ["/absolute/path/to/canyon-mcp/dist/mcp.js"]
+      "command": "/absolute/path/to/canyon-mcp"
     }
   }
 }
 ```
 
-Replace both example paths with paths on your machine. Some MCP clients can resolve `bun` directly, in which case `"command": "bun"` also works. The server uses stdio; its normal output is reserved for MCP messages.
+The server uses stdio and reserves stdout for protocol messages.
 
 Ask your client to *search for a gravel bike in size M*, *compare two model IDs*, or *show the variants for a product URL*. The four tools return human-readable text and structured data.
 
@@ -85,19 +79,29 @@ Ask your client to *search for a gravel bike in size M*, *compare two model IDs*
 - Search reads at most the first **200** listing tiles per request. It is a shortlist tool, not a complete catalog mirror. `total` is best effort and may differ from Canyon's full catalog count.
 - Search tiles can omit or leave availability unknown. Use `product` or `get_bike` to inspect variant-level stock. `--in-stock` filters the listing, but a final product-page check is still sensible.
 - Results include `fetchedAt` and `stale`. `stale: true` means a temporary request failure caused a fallback to older cached data.
-- Successful responses are cached in `~/.cache/canyon-mcp/cache.sqlite`. By default, requests are spaced at least two seconds apart. Set `CANYON_CACHE_PATH` to change the cache location, `CANYON_MIN_INTERVAL_MS` to change the delay, and `CANYON_USER_AGENT` to identify a shared deployment.
+- Successful responses are cached in `~/.cache/canyon-mcp/cache.sqlite`. Within each CLI or MCP process, upstream requests are spaced at least two seconds apart by default. Set `CANYON_CACHE_PATH` to change the cache location, `CANYON_MIN_INTERVAL_MS` to change the delay, and `CANYON_USER_AGENT` to identify a shared deployment.
 - The HTTP client accepts only `https://www.canyon.com` pages and blocks `/on/demandware.store/` endpoints. Please keep usage modest and respect Canyon's [robots.txt](https://www.canyon.com/robots.txt) and website terms.
+
+## Docker
+
+```sh
+docker compose up -d --build
+docker compose ps
+docker exec canyon-mcp canyon cache
+```
+
+Configure a container-backed MCP client with `"command": "docker"` and `"args": ["exec", "-i", "canyon-mcp", "canyon-mcp"]`. Compose keeps the container available for stdio sessions and mounts a persistent cache at `/data`. The SQLite schema and container UID/GID 1000 are compatible with the previous Bun deployment. Existing `docker exec -i canyon-mcp bun /app/dist/mcp.js` configurations launch the same Rust server through a compatibility wrapper.
 
 ## Develop
 
 ```sh
-bun run check
-bun run test
-bun run build
-bun pm pack --dry-run
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+cargo package --locked
 ```
 
-Tests use local fixtures. `bun run test:live` makes a fresh request to Canyon and should be run sparingly. See [CONTRIBUTING.md](CONTRIBUTING.md) for the small contribution checklist.
+Tests use local fixtures. For an occasional live smoke test, run `canyon search Grail --locale en-de --limit 3 --json --refresh`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution checklist.
 
 ## License
 

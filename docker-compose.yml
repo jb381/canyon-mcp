@@ -1,0 +1,36 @@
+services:
+  canyon-mcp:
+    build: .
+    image: ${CANYON_IMAGE:-canyon-mcp:0.1.0}
+    container_name: canyon-mcp
+    restart: unless-stopped
+    init: true
+    environment:
+      CANYON_CACHE_PATH: /data/cache.sqlite
+      CANYON_MIN_INTERVAL_MS: "2000"
+    volumes:
+      - canyon-cache:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    healthcheck:
+      test: ["CMD-SHELL", "canyon --version && test -w /data"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    labels:
+      homepage.group: Fitness
+      homepage.name: Canyon MCP
+      homepage.icon: mdi-bicycle
+      homepage.href: https://github.com/jb381/canyon-mcp
+      homepage.description: Canyon bike catalog MCP tools for automations
+      homepage.weight: "600"
+
+volumes:
+  canyon-cache:
